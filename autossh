@@ -1,0 +1,105 @@
+#!/bin/bash
+PROGRAM=$(basename $0)
+BASEDIR=$(dirname $0)
+FILE=$BASEDIR/.logins
+CONNECT=$BASEDIR/response.exp
+SERVERNAME=$1
+
+MYSERVER=""
+MYUSER=""
+MYPWD=""
+MYPORT="22"
+
+FOUND="false"
+
+function do_list {
+	echo "==== Conexoes disponiveis: "
+	for LINE in $(cat $FILE | cut -d '|' -f1); do
+		ASERVER=$(echo $LINE | cut -d '|' -f1)
+		echo "                         : "$ASERVER
+	done
+	echo "==== Utilize: $PROGRAM conexao"
+}
+
+if [ -z "$SERVERNAME" ];
+then
+	echo "==== Utilize: $PROGRAM conexao"
+	echo "===         : $PROGRAM LIST"
+	echo "====        : $PROGRAM ADD"
+	echo "====        : $PROGRAM ADD [servidor usuario senha]"
+	exit 0
+fi
+
+if [ "$SERVERNAME" == "ADD" ];
+then
+	if [ -z "$2" ];
+	then
+		read -p "Nome do servidor: " NEWSERVER
+	else
+		NEWSERVER=$2
+	fi
+
+	if [ -z "$3" ];
+	then
+		read -p "         usuario: " NEWUSER
+	else
+		NEWUSER=$3
+	fi
+
+	if [ -z "$4" ];
+	then
+		read -p "           senha: " -s NEWPWD
+		echo -ne "\n"
+	else
+		NEWPWD=$4
+	fi
+	
+        if [ "$5" == "RDP" ];
+        then
+	        echo $NEWSERVER"|"$NEWUSER"|"$NEWPWD"|RDP" >> $FILE
+        else
+        	echo $NEWSERVER"|"$NEWUSER"|"$NEWPWD"|22" >> $FILE
+        fi
+	echo "Novo servidor adicionado com sucesso: $NEWSERVER"
+
+	exit 0
+fi
+
+if [ "$SERVERNAME" == "LIST" ];
+then
+	do_list
+	exit 0
+fi
+
+for line in $(cat $FILE) do
+do
+	MYSERVER=$(echo $line | cut -d '|' -f1)
+	MYUSER=$(echo $line | cut -d '|' -f2)
+	MYPWD=$(echo $line | cut -d '|' -f3)
+	MYPORT=$(echo $line | cut -d '|' -f4)
+	if [ "$SERVERNAME" == "$MYSERVER" ];
+	then
+		echo "Running ssh $MYUSER@$MYSERVER..."
+		FOUND="true"
+		break
+	fi
+done
+
+if [ "$FOUND" == "true" ];
+then
+	if [ "$MYPORT" == "RDP" ];
+        then
+                #rdesktop -p '$MYPWD' -u $MYUSER -g 1024x720 -z -k pt-br -m $MYSERVER
+                # desabilitar a compress "-z"
+                #nohup rdesktop -p \'"$MYPWD"\' -u $MYUSER -g 1024x720 -k pt-br -m $MYSERVER > /dev/null 2>&1 &
+                nohup rdesktop -p $MYPWD -u $MYUSER -g 1280x800 -k pt-br -r sound:off -z -x m $MYSERVER > /dev/null 2>&1 &
+                #echo rdesktop -p \'$MYPWD\' -u $MYUSER -g 1024x720 -k pt-br -m $MYSERVER 
+        else
+	        $CONNECT $MYPWD $MYSERVER $MYUSER $MYPORT
+        fi
+else
+	echo "O servidor *"$SERVERNAME"* não foi encontrado."
+	do_list
+fi
+
+exit 0
